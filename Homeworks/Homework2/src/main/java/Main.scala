@@ -1,16 +1,17 @@
 import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
 import org.apache.spark.sql.types.{IntegerType, LongType, StructField, StructType}
 import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.sql.{DataFrame, Encoder, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, Encoder, Row, SparkSession}
 import org.apache.spark.ml.recommendation.ALS
 import org.apache.spark.ml.evaluation.RegressionEvaluator
-
-import org.mlflow.tracking.{MlflowContext, ActiveRun}
-
+import org.mlflow.tracking.{ActiveRun, MlflowContext}
 import org.apache.log4j.{Level, Logger}
+import org.apache.spark.sql.functions.explode
 //import org.apache.spark.impl
 
 case class Rating(userId: Int, movieId: Int, rating: Int, timestamp: Long)
+
+case class Person(userId: Int)
 
 
 object Main {
@@ -30,7 +31,7 @@ object Main {
     }
     val run = mlflowContext.startRun("ALS train/eval")
 
-    val maxIter: Int = 21
+    val maxIter: Int = 10
     val regParam: Float = .5f
 
     val spark = SparkSession
@@ -44,7 +45,7 @@ object Main {
 
     def parseRating(str: String): Rating = {
       val fields = str.split("\\t")
-      new Rating(fields(0).toInt, fields(1).toInt, fields(2).toInt, fields(3).toLong)
+      Rating(fields(0).toInt, fields(1).toInt, fields(2).toInt, fields(3).toLong)
     }
 
     import spark.implicits._
@@ -83,19 +84,16 @@ object Main {
     println(s"Root-mean-square error = $rmse")
 
     run.logMetric("RMSE", rmse)
-
     run.endRun()
 
     val userRecs = model.recommendForAllUsers(10)
     val movieRecs = model.recommendForAllItems(10)
 
-//    println("Top ten movie recommendations for each user: ")
-//    println(userRecs + "\n")
-//    println("Top ten user recommendations for each movie: ")
-//    println(movieRecs + "\n")
+    val user: Dataset[Person] = spark.createDataset(Seq(Person(688), Person(1), Person(2), Person(3), Person(4)))
 
-//    println(userRecs.show())
-//    println()
-    println(movieRecs.select("recommendations").show())
+    val recommendForSubsetDF = model.recommendForUserSubset(user, 5)
+
+    recommendForSubsetDF.collect().foreach(println)
+
   }
 }
