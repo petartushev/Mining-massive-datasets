@@ -1,13 +1,8 @@
-import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
-import org.apache.spark.sql.types.{IntegerType, LongType, StructField, StructType}
-import org.apache.spark.{SparkConf, SparkContext}
-import org.apache.spark.sql.{DataFrame, Dataset, Encoder, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 import org.apache.spark.ml.recommendation.ALS
 import org.apache.spark.ml.evaluation.RegressionEvaluator
-import org.mlflow.tracking.{ActiveRun, MlflowContext}
+import org.mlflow.tracking.MlflowContext
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.sql.functions.explode
-//import org.apache.spark.impl
 
 case class Rating(userId: Int, movieId: Int, rating: Int, timestamp: Long)
 
