@@ -81,9 +81,6 @@ object Main {
     run.logMetric("RMSE", rmse)
     run.endRun()
 
-    val userRecs = model.recommendForAllUsers(10)
-    val movieRecs = model.recommendForAllItems(10)
-
     val user: Dataset[Person] = spark.createDataset(Seq(Person(688), Person(1), Person(2), Person(3), Person(4)))
 
     val recommendForSubsetDF = model.recommendForUserSubset(user, 5)
