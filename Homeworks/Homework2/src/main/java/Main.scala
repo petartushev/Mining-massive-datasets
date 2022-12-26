@@ -26,8 +26,8 @@ object Main {
     }
     val run = mlflowContext.startRun("ALS train/eval")
 
-    val maxIter: Int = 10
-    val regParam: Float = .5f
+    val maxIter: Int = 21
+    val regParam: Float = .1f
 
     val spark = SparkSession
       .builder()
@@ -67,7 +67,6 @@ object Main {
       .setRatingCol("rating")
 
     val model = als.fit(train)
-
     val preds = model.transform(test)
 
     val evaluator = new RegressionEvaluator()
