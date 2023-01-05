@@ -13,9 +13,9 @@ object GradientBoostedClassifier {
   def main(args: Array[String]): Unit = {
 
     val TRAIN = .8
-    val MAX_ITER = 10
-    val MAX_BINS = 10
+    val MAX_BINS = 28
     val MAX_DEPTH = 10
+    val IMPURITY = "gini"
 
     val spark = SparkSession
       .builder()
@@ -48,9 +48,9 @@ object GradientBoostedClassifier {
     val clf = new GBTClassifier()
       .setLabelCol("label")
       .setFeaturesCol("features")
-      .setMaxIter(MAX_ITER)
       .setMaxDepth(MAX_DEPTH)
       .setMaxBins(MAX_BINS)
+      .setImpurity(IMPURITY)
       .setFeatureSubsetStrategy("auto")
 
     val stages = Array(assembler, labelIndexer, clf)
@@ -59,41 +59,43 @@ object GradientBoostedClassifier {
 
 //    ----------------------------------  CROSS VALIDATION CODE ----------------------------------
 
-    val paramGrid = new ParamGridBuilder()
-      .addGrid(clf.maxBins, Array(25, 28)) //
-      .addGrid(clf.maxIter, Array(5, 10, 15)) //
-      .addGrid(clf.maxDepth, Array(5, 10, 15)) //
-      .build()
-
-    val evaluator = new BinaryClassificationEvaluator()
-      .setLabelCol("label")
-      .setMetricName("areaUnderROC")
-
-    val cv = new CrossValidator()
-      .setEstimator(pipeline)
-      .setEvaluator(evaluator)
-      .setEstimatorParamMaps(paramGrid)
-      .setNumFolds(5)
-      .setParallelism(4)
-
-    val cvModel = cv.fit(pipelineTrainData)
-
-    val predictionAndLabels: DataFrame = cvModel.transform(pipelineTestData)
-
-    println(cvModel.getEstimatorParamMaps.zip(cvModel.avgMetrics).maxBy(_._2)._1)
+//    val paramGrid = new ParamGridBuilder()
+//      .addGrid(clf.maxBins, Array(25, 28)) //
+//      .addGrid(clf.maxIter, Array(5, 10, 15)) //
+//      .addGrid(clf.maxDepth, Array(5, 10, 15)) //
+//      .build()
+//
+//    val evaluator = new BinaryClassificationEvaluator()
+//      .setLabelCol("label")
+//      .setMetricName("areaUnderROC")
+//
+//    val cv = new CrossValidator()
+//      .setEstimator(pipeline)
+//      .setEvaluator(evaluator)
+//      .setEstimatorParamMaps(paramGrid)
+//      .setNumFolds(5)
+//      .setParallelism(4)
+//
+//    val cvModel = cv.fit(pipelineTrainData)
+//
+//    val predictionAndLabels: DataFrame = cvModel.transform(pipelineTestData)
+//
+//    println(cvModel.getEstimatorParamMaps.zip(cvModel.avgMetrics).maxBy(_._2)._1)
 
 //    ----------------------------------  CROSS VALIDATION CODE ----------------------------------
 
 
 //    ----------------------------------  STANDARD CODE ----------------------------------
 
-//    val pipelineModel = pipeline.fit(pipelineTrainData)
-//
-//    val preds = pipelineModel.transform(pipelineTestData)
-//
-//    val predictionAndLabels: DataFrame = preds.select("label", "prediction")
+    val pipelineModel = pipeline.fit(pipelineTrainData)
+
+    val preds = pipelineModel.transform(pipelineTestData)
+
+    val predictionAndLabels: DataFrame = preds.select("label", "prediction")
 
 //    ----------------------------------  STANDARD CODE ----------------------------------
+
+    pipelineModel.save("/home/petar/Fakultet/Semester 7/Mining massive datasets/Homeworks/Homework3/models/GBClassifier")
 
     val predictionAndLabelsRDD = predictionAndLabels
       .select("label", "prediction")
