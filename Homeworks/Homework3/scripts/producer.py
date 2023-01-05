@@ -1,5 +1,3 @@
-from ensurepip import bootstrap
-import imp
 import json 
 import kafka
 import pandas as pd
@@ -14,11 +12,17 @@ df.drop(['Smoker'], axis=1, inplace=True)
 
 for row in df.iterrows():
 
-    # print(row[1].to_json())
+    # print(f'Data as is: {row[1]}\n')
+    # print(f'Data type: {type(row[1])}')
+    # print(f'Data as json: {row[1].to_json()}\n')
+    # print(f'Serialized data:')
+    # print(row[1].to_json().encode('utf-8'))
+
+    # break
 
     producer.send(
         topic='health_data',
         value=row[1].to_json().encode('utf-8')
     )
 
-    time.sleep(random.randint(100, 1500)/1000.0)
+    # time.sleep(random.randint(10, 15)/1000.0)
