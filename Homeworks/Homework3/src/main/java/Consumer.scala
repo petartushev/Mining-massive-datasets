@@ -1,10 +1,62 @@
+import breeze.storage.ConfigurableDefault.fromV
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.{col, from_json}
-import org.apache.spark.sql.types.{DoubleType, StructField, StructType}
+import org.apache.spark.ml.{Pipeline, PipelineModel}
+import org.apache.spark.sql.{Column, DataFrame, SparkSession}
+import org.apache.spark.sql.functions.{col, explode, from_json, get_json_object, lit, split, udf}
+import org.apache.spark.sql.types.{DoubleType, StringType, StructField, StructType}
+//import org.apache.spark.sql.types._
+
+case class Input(Diabetes_012: Double,
+                 HighBP: Double,
+                 HighChol: Double,
+                 CholCheck: Double,
+                 BMI: Double,
+                 Stroke: Double,
+                 HeartDiseaseorAttack: Double,
+                 PhysActivity: Double,
+                 Fruits: Double,
+                 Veggies: Double,
+                 HvyAlcoholConsump: Double,
+                 AnyHealthcare: Double,
+                 NoDocbcCost: Double,
+                 GenHlth: Double,
+                 MentHlth: Double,
+                 PhysHlth: Double,
+                 DiffWalk: Double,
+                 Sex: Double,
+                 Age: Double,
+                 Education: Double,
+                 Income: Double,
+                 id: Double)
 
 object Consumer {
+
   def main(args: Array[String]): Unit = {
+
+    def parseInput(a: Array[String]): Input = {
+      Input(a(0).toDouble,
+        a(1).toDouble,
+        a(2).toDouble,
+        a(3).toDouble,
+        a(4).toDouble,
+        a(5).toDouble,
+        a(6).toDouble,
+        a(7).toDouble,
+        a(8).toDouble,
+        a(9).toDouble,
+        a(10).toDouble,
+        a(11).toDouble,
+        a(12).toDouble,
+        a(13).toDouble,
+        a(14).toDouble,
+        a(15).toDouble,
+        a(16).toDouble,
+        a(17).toDouble,
+        a(18).toDouble,
+        a(19).toDouble,
+        a(20).toDouble,
+        a(21).toDouble)
+    }
 
     val spark = SparkSession
       .builder()
@@ -17,7 +69,9 @@ object Consumer {
     println(rootLogger.getClass)
     rootLogger.setLevel(Level.WARN)
 
-    val df = spark
+    val clf = PipelineModel.load("/home/petar/Fakultet/Semester 7/Mining massive datasets/Homeworks/Homework3/models/GBClassifier/")
+
+    var df = spark
       .readStream
       .format("kafka")
       .option("kafka.bootstrap.servers", "localhost:9092")
@@ -26,40 +80,60 @@ object Consumer {
       .load()
 
     val schema: StructType = new StructType(Array(
-      StructField("Diabetes_012", DoubleType, nullable = false),
-      StructField("HighBP", DoubleType, nullable = false),
-      StructField("HighChol", DoubleType, nullable = false),
-      StructField("CholCheck", DoubleType, nullable = false),
-      StructField("BMI", DoubleType, nullable = false),
-      StructField("Stroke", DoubleType, nullable = false),
-      StructField("HeartDiseaseorAttack", DoubleType, nullable = false),
-      StructField("PhysActivity", DoubleType, nullable = false),
-      StructField("Fruits", DoubleType, nullable = false),
-      StructField("Veggies", DoubleType, nullable = false),
-      StructField("HvyAlcoholConsump", DoubleType, nullable = false),
-      StructField("AnyHealthcare", DoubleType, nullable = false),
-      StructField("NoDocbcCost", DoubleType, nullable = false),
-      StructField("GenHlth", DoubleType, nullable = false),
-      StructField("MentHlth", DoubleType, nullable = false),
-      StructField("PhysHlth", DoubleType, nullable = false),
-      StructField("DiffWalk", DoubleType, nullable = false),
-      StructField("Sex", DoubleType, nullable = false),
-      StructField("Age", DoubleType, nullable = false),
-      StructField("Education", DoubleType, nullable = false),
-      StructField("Education", DoubleType, nullable = false),
-      StructField("Education", DoubleType, nullable = false),
-      StructField("Income", DoubleType, nullable = false),
-      StructField("id", DoubleType, nullable = false)
+      StructField("Diabetes_012", StringType, nullable = false),
+      StructField("HighBP", StringType, nullable = false),
+      StructField("HighChol", StringType, nullable = false),
+      StructField("CholCheck", StringType, nullable = false),
+      StructField("BMI", StringType, nullable = false),
+      StructField("Stroke", StringType, nullable = false),
+      StructField("HeartDiseaseorAttack", StringType, nullable = false),
+      StructField("PhysActivity", StringType, nullable = false),
+      StructField("Fruits", StringType, nullable = false),
+      StructField("Veggies", StringType, nullable = false),
+      StructField("HvyAlcoholConsump", StringType, nullable = false),
+      StructField("AnyHealthcare", StringType, nullable = false),
+      StructField("NoDocbcCost", StringType, nullable = false),
+      StructField("GenHlth", StringType, nullable = false),
+      StructField("MentHlth", StringType, nullable = false),
+      StructField("PhysHlth", StringType, nullable = false),
+      StructField("DiffWalk", StringType, nullable = false),
+      StructField("Sex", StringType, nullable = false),
+      StructField("Age", StringType, nullable = false),
+      StructField("Education", StringType, nullable = false),
+      StructField("Income", StringType, nullable = false),
+      StructField("id", StringType, nullable = false)
     ))
 
-    val df1 = df.selectExpr("CAST(value AS STRING)")
 
-    val df2 = df1.select(from_json(col("value"), schema).as("data"))
 
-    df2
+    df = df.selectExpr("CAST(value AS STRING)")
+
+
+    df = df.select(from_json(col("value"), schema).as("data"))
+
+
+    val query = df
       .writeStream
       .format("console")
-      .outputMode("append")
+      .start()
+      .awaitTermination(9000)
+
+    df = df
+      .map(row =>
+        parseInput(row.mkString("[", ",", "]").split(",")))
+//      .foreach(x => println(x))
+      .toDF()
+
+    df.printSchema()
+
+
+    val preds = clf.transform(df)
+
+    preds.
+      writeStream
+      .format("kafka")
+      .option("kafka.boostrap.servers", "localhost:9092")
+      .option("publish", "health_data_predicted")
       .start()
       .awaitTermination()
 
