@@ -1,5 +1,6 @@
 import breeze.storage.ConfigurableDefault.fromV
 import org.apache.log4j.{Level, Logger}
+import org.apache.spark.{SparkConf, SparkEnv}
 import org.apache.spark.ml.{Pipeline, PipelineModel}
 import org.apache.spark.sql.{Column, DataFrame, SparkSession}
 import org.apache.spark.sql.functions.{col, explode, from_json, get_json_object, lit, split, udf}
@@ -34,7 +35,8 @@ object Consumer {
   def main(args: Array[String]): Unit = {
 
     def parseInput(a: Array[String]): Input = {
-      Input(a(0).toDouble,
+      Input(
+        a(0).toDouble,
         a(1).toDouble,
         a(2).toDouble,
         a(3).toDouble,
@@ -69,7 +71,7 @@ object Consumer {
     println(rootLogger.getClass)
     rootLogger.setLevel(Level.WARN)
 
-    val clf = PipelineModel.load("/home/petar/Fakultet/Semester 7/Mining massive datasets/Homeworks/Homework3/models/GBClassifier/")
+    val clf: PipelineModel = PipelineModel.read.load("/home/petar/Fakultet/Semester 7/Mining massive datasets/Homeworks/Homework3/models/GBClassifier/")
 
     var df = spark
       .readStream
@@ -104,36 +106,30 @@ object Consumer {
       StructField("id", StringType, nullable = false)
     ))
 
-
-
     df = df.selectExpr("CAST(value AS STRING)")
-
 
     df = df.select(from_json(col("value"), schema).as("data"))
 
-
-    val query = df
-      .writeStream
-      .format("console")
-      .start()
-      .awaitTermination(9000)
-
-    df = df
+    val df1 = df
       .map(row =>
-        parseInput(row.mkString("[", ",", "]").split(",")))
-//      .foreach(x => println(x))
+        parseInput(row.mkString(",").replaceAll("[\\[\\]]", "").split(",")))
       .toDF()
 
-    df.printSchema()
+    df1.printSchema()
 
+    val preds = clf.transform(df1)
 
-    val preds = clf.transform(df)
+    val preds1 = preds.select("prediction")
 
-    preds.
-      writeStream
+    preds1.printSchema()
+
+    preds1
+      .toJSON
+      .writeStream
       .format("kafka")
-      .option("kafka.boostrap.servers", "localhost:9092")
-      .option("publish", "health_data_predicted")
+      .option("kafka.bootstrap.servers", "localhost:9092")
+      .option("topic", "health_data_predicted")
+      .option("checkpointLocation", "/home/petar/Fakultet/Semester 7/Mining massive datasets/Homeworks/Homework3/data/temp/")
       .start()
       .awaitTermination()
 
